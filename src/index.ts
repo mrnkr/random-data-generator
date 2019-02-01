@@ -8,6 +8,7 @@ import { Api } from './api';
 import { Config } from './config';
 import createContainer from './container';
 import { Generator } from './generator';
+import { loadSchema } from './json-reader';
 
 const init = () => {
   console.log(
@@ -103,7 +104,7 @@ const run = async () => {
 
   const api     = container.resolve('api') as Api;
   const gen     = container.resolve('generator') as Generator;
-  const schema  = require(config.schemaUri);
+  const schema  = await loadSchema(config.schemaUri);
 
   // generate and populate
   const data    = await gen.generate(schema, Number.parseInt(config.entries || '1'));
@@ -111,7 +112,7 @@ const run = async () => {
   if (config.commit)
     await api.insert(config.collection, data);
   else
-    console.log(`Generated: ${JSON.stringify(data)}`);
+    console.log(`Generated: \n${JSON.stringify(data[0], null, 2)}`);
 
   console.log(chalk.white.bgGreen.bold('Done'));
 };

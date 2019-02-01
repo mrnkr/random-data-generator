@@ -1,6 +1,6 @@
 {
   "name": "random-data-generator",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "CLI to generate random data in a database",
   "main": "src/index.ts",
   "scripts": {
@@ -10,7 +10,11 @@
     "test": "jest"
   },
   "repository": "https://github.com/mrnkr/random-data-generator",
-  "keywords": ["cli", "random", "database"],
+  "keywords": [
+    "cli",
+    "random",
+    "database"
+  ],
   "author": "Mr.NKR",
   "license": "MIT",
   "dependencies": {
@@ -26,6 +30,7 @@
   "devDependencies": {
     "@types/faker": "^4.1.5",
     "@types/figlet": "^1.2.0",
+    "@types/glob": "^7.1.1",
     "@types/inquirer": "0.0.43",
     "@types/jest": "^23.3.13",
     "@types/mongodb": "^3.1.19",

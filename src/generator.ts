@@ -76,7 +76,11 @@ export class Generator {
   private validate = new Ajv({ allErrors: true, useDefaults: true, verbose: true }).compile(schema);
   private cache: Map<string, any> = new Map();
 
-  constructor(private api: Api) { }
+  constructor(private api: Api) {
+    // polyfill arrayElements (not available for some reason 🤷🏻‍)
+    (faker as any).random['arrayElements'] = (array: any[]) =>
+      array.filter(_ => faker.random.boolean());
+  }
 
   public async generate(seed: Schema, entries: number): Promise<any[]> {
     await this.prefetchForeignValues(seed);
@@ -109,13 +113,19 @@ export class Generator {
     const: (value: any) => {
       return value;
     },
-    faker: ({ cmd, args }: { cmd: string; args?: any[] }) => {
+    faker: ({ cmd, args = [] }: { cmd: string; args?: any[] }) => {
       const [ns, m] = cmd.split('.');
-      return (faker as any)[ns][m](...(args || []));
+      return (faker as any)[ns][m](...args);
     },
     map: ({ ids, entities, format = 'simple' }: { ids: Schema; entities: Schema; format: 'simple' | 'detailed' }) => {
       const ret: any    = {};
-      const genIds      = this._generate(ids, 1)[0];
+      const [genIds]    = this._generate(ids, 1);
+      
+      if (!('forEach' in genIds) || !('length' in genIds))
+        throw new Error(`ids generated something other than an array 🙄\n
+                         Generator: ${JSON.stringify(ids, null, 2)}\n
+                         Generated: ${JSON.stringify(genIds, null, 2)}`);
+
       const genEntities = this._generate(entities, genIds.length);
 
       genIds.forEach((id: string | number, index: number) => ret[id] = genEntities[index]);
