@@ -259,4 +259,5 @@ Expected output if format were simple: `{ "colors": { "#7FFFD4": "beige", "#EE82
 ### Changelog
 
 * 0.0.1 -> Initial implementation
-* 0.0.2 -> Removed the possible keyword in favor of faker.random.arrayElement(s) - Added support for generation of regular maps and not just those like the ones in [@ngrx/entity](https://ngrx.io/guide/entity) - 
+* 0.0.2 -> Removed the possible keyword in favor of faker.random.arrayElement(s) - Added support for generation of regular maps and not just those like the ones in [@ngrx/entity](https://ngrx.io/guide/entity)
+* 0.0.3 -> Now loads schema using the fs module and sanitizes the provided route a bit (just applies trim for now 😇) - added clear error message for when the ids schema generates anything other than an array - now pretty prints objects when it has to - updated tsconfig.json
