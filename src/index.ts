@@ -3,12 +3,11 @@
 import chalk from 'chalk';
 import figlet from 'figlet';
 import inquirer from 'inquirer';
-// import shell from 'shelljs';
 
+import { Api } from './api';
 import { Config } from './config';
-import { Database } from './db';
-import { insert } from './driver';
-import { generate, getForeignValues } from './generator';
+import createContainer from './container';
+import { Generator } from './generator';
 
 const init = () => {
   console.log(
@@ -74,9 +73,15 @@ const askQuestions: () => Promise<Config> = () => {
       message: "Enter the path to the schema"
     },
     {
+      name: "commit",
+      type: "confirm",
+      message: "Commit data to your database? (say no if you're testing your schema)"
+    },
+    {
       name: "entries",
       type: "input",
-      message: "How many entries should be made?"
+      message: "How many entries should be made?",
+      when: ({ commit }: Config) => commit
     }
   ];
   return inquirer.prompt(questions);
@@ -91,18 +96,24 @@ const run = async () => {
   const config  = answers;
 
   // prepare everything
+  const container = await createContainer(
+    config.engine,
+    `${config.engine}://${config.auth ? `${config.username}:${config.password}@` : ''}${config.host}:${config.port}/${config.database}`
+  );
+
+  const api     = container.resolve('api') as Api;
+  const gen     = container.resolve('generator') as Generator;
   const schema  = require(config.schemaUri);
-  const connStr = `${config.engine}://${config.auth ? `${config.username}:${config.password}@` : ''}${config.host}:${config.port}/${config.database}`
-  const db      = new Database(config.engine as any, connStr);
-  await db.connect();
 
   // generate and populate
-  await getForeignValues(schema, db);
-  const data    = generate(schema, Number.parseInt(config.entries));
-  await insert(db, config.collection, data);
-  console.log(chalk.white.bgGreen.bold('Done'));
+  const data    = await gen.generate(schema, Number.parseInt(config.entries || '1'));
+  
+  if (config.commit)
+    await api.insert(config.collection, data);
+  else
+    console.log(`Generated: ${JSON.stringify(data)}`);
 
-  await db.disconnect();
+  console.log(chalk.white.bgGreen.bold('Done'));
 };
 
 run();

@@ -1,5 +1,5 @@
 export interface Config {
-  engine: string;
+  engine: 'mongodb' | 'mysql';
   host: string;
   port: string;
   auth: boolean;
@@ -8,5 +8,6 @@ export interface Config {
   database: string;
   collection: string;
   schemaUri: string;
-  entries: string;
+  commit: boolean;
+  entries?: string;
 }

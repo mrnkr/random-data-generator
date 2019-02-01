@@ -1,13 +1,30 @@
 import Ajv from 'ajv';
 import * as faker from 'faker';
-import { Db } from 'mongodb';
-import { Connection } from 'mysql';
-import { Database } from './db';
+import { Api } from './api';
+import { Schema } from './schema';
 
 const schema = {
   "$id": "http://example.com/schemas/schema.json",
   "type": "object",
   "properties": {
+    "array": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "$ref": "schema.json"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "limit": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cache": {
+      "type": "string"
+    },
     "const": {
       "type": ["number", "boolean", "string", "array", "object"]
     },
@@ -24,185 +41,175 @@ const schema = {
       },
       "additionalProperties": false
     },
-    "list": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "$ref": "schema.json"
-        },
-        "count": {
-          "type": "integer"
-        },
-        "limit": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false
+    "foreign": {
+      "type": "string"
     },
     "map": {
       "type": "object",
       "properties": {
         "ids": {
-          "type": "object",
-          "required": ["cmd"],
-          "properties": {
-            "cmd": {
-              "type": "string"
-            },
-            "args": {
-              "type": "array"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "schema.json"
         },
         "entities": {
           "$ref": "schema.json"
         },
-        "count": {
-          "type": "integer"
+        "format": {
+          "type": "string",
+          "enum": ["simple", "detailed"]
         }
       },
       "additionalProperties": false
     },
-    "possible": {
-      "type": "object",
-      "properties": {
-        "values": {
-          "type": "array",
-          "items": {
-            "type": ["number", "boolean", "string", "array", "object"]
-          }
-        },
-        "unique": {
-          "type": "boolean"
-        },
-        "foreign": {
-          "type": "string"
-        }
-      }
+    "pregenerate": {
+      "$ref": "schema.json"
     }
   },
   "patternProperties": {
-    "^(?!(const|faker|list|map|possible)$).*$": {
+    "^(?!(array|cache|const|faker|foreign|map|pregenerate)$).*$": {
       "$ref": "schema.json"
     }
   }
 };
 
-export function generate(seed: any, entries: number, db?: Database) {
-  const isValid = new Ajv({ allErrors: true, verbose: true, useDefaults: true }).compile(schema);
+export class Generator {
 
-  if (!isValid(seed))
-    throw new Error(JSON.stringify(isValid.errors));
+  private validate = new Ajv({ allErrors: true, useDefaults: true, verbose: true }).compile(schema);
+  private cache: Map<string, any> = new Map();
 
-  const ret: any[] = [];
+  constructor(private api: Api) { }
 
-  if ('faker' in seed) {
-    const [ns, m] = seed.faker.cmd.split('.');
-    for (let i = 0; i < entries; i++)
-      ret.push(ns === 'date' ? ((faker as any)[ns][m](...seed.faker.args) as Date).toISOString() : (faker as any)[ns][m](...seed.faker.args));
-  } else if ('const' in seed) {
-    for (let i = 0; i < entries; i++)
-      ret.push(seed.const);
-  } else if ('possible' in seed) {
-    const values = [...seed.possible.values];
-    for (let i = 0; i < entries; i++) {
-      const index = faker.random.number({ min: 0, max: values.length - 1 });
-      ret.push(values[index]);
-      if (seed.possible.unique) values.splice(index, 1);
+  public async generate(seed: Schema, entries: number): Promise<any[]> {
+    await this.prefetchForeignValues(seed);
+
+    if (seed.pregenerate) {
+      await this.pregenerate(seed.pregenerate)
+      delete seed.pregenerate;
     }
-  } else if ('list' in seed) {
-    const { count = faker.random.number({ min: 1, max: seed.list.limit - 1 }) } = seed.list;
-    for (let i = 0; i < entries; i++)
-      ret.push(generate(seed.list.items, count));
-  } else if ('map' in seed) {
-    for (let i = 0; i < entries; i++) {
-      const ids: string[] = [];
-      const [ns, m] = seed.map.ids.split('.');
-      const { count = faker.random.number() } = seed.map;
-      for (let i = 0; i < count; i++)
-        ids.push((faker as any)[ns][m]());
-      const entities = generate(seed.map.entities, count);
-      const map: any = { ids, entities: {} };
-      ids.forEach((id, index) => map.entities[id] = entities[index]);
-      ret.push(map);
-    }
-  } else {
-    for (let i = 0; i < entries; i++)
-      ret.push({});
-
-    Object.keys(seed).forEach(key => {
-      for (let i = 0; i < entries; i++)
-        ret[i][key] = generate(seed[key], 1)[0];
-    });
+      
+    return this._generate(seed, entries);
   }
 
-  return ret;
-}
+  private methodHandlers: { [key: string]: (args: any) => any } = {
+    array: ({ items, count, limit }: { items: Schema; count?: number; limit?: number }) => {
+      if (!count) {
+        if (!limit)
+          throw new Error('No limit or count provided 😒');
+        
+        count = faker.random.number({ min: 1, max: limit - 1 });
+      }
 
-export async function getForeignValues(seed: any, db: Database) {
-  const cache = new Map<string, any>();
+      return this._generate(items, count);
+    },
+    cache: (key: string) => {
+      if (!this.cache.has(key))
+        throw new Error('The cache does not contain the requested element 😖');
 
-  await Promise.all(Object
-    .keys(seed)
-    .filter(key => ['const', 'faker'].indexOf(key) === -1)
-    .map(async key => {
-      switch (key) {
+      return this.cache.get(key);
+    },
+    const: (value: any) => {
+      return value;
+    },
+    faker: ({ cmd, args }: { cmd: string; args?: any[] }) => {
+      const [ns, m] = cmd.split('.');
+      return (faker as any)[ns][m](...(args || []));
+    },
+    map: ({ ids, entities, format = 'simple' }: { ids: Schema; entities: Schema; format: 'simple' | 'detailed' }) => {
+      const ret: any    = {};
+      const genIds      = this._generate(ids, 1)[0];
+      const genEntities = this._generate(entities, genIds.length);
 
-        case 'list':
-          await getForeignValues(seed[key].items, db);
-          break;
+      genIds.forEach((id: string | number, index: number) => ret[id] = genEntities[index]);
+      return format === 'simple' ? ret : { ids: genIds, entities: ret };
+    }
+  };
 
-        case 'map':
-          await getForeignValues(seed[key].entities, db);
-          break;
+  // TODO: Think of a better name that actually goes with the used conventions
+  private _generate(seed: Schema, entries: number): any[] {
+    if (!this.validate(seed))
+      throw new Error(`Invalid seed =>\n${JSON.stringify(this.validate.errors)}`);
 
-        case 'possible':
-          if (seed[key].foreign) {
-            if (cache.has(seed[key].foreign)) {
-              seed[key].values = cache.get(seed[key].foreign);
-              break;
-            }
+    const ret: any[] = [];
 
-            const [ collection, field ] = seed[key].foreign.split('.');
-            
-            switch (db.engine) {
+    Object
+      .keys(seed)
+      .forEach(key => {
+        switch (key) {
 
-              case 'mongodb':
-                seed[key].values = (await (db.repo as Db)
-                  .collection(collection)
-                  .distinct(field, {})).map((item: any) => {
-                    if ('toHexString' in item) {
-                      return item.toHexString();
-                    }
-
-                    return item;
-                  });
-                break;
-
-              case 'mysql':
-                const query = new Promise((resolve, reject) => {
-                  (db.repo as Connection).query(`select unique \`${field}\` from \`${collection}\``, (err, values) => {
-                    if (err)
-                      return reject(err);
-                    resolve(values);
-                  });
-                });
-
-                seed[key].values = await query;
-                break;
-
-            }
-
-            cache.set(key, seed[key].values);
+          case 'array':
+          case 'cache':
+          case 'const':
+          case 'faker':
+          case 'map':
+            for (let i = 0; i < entries; i++)
+              ret.push(this.methodHandlers[key](seed[key]));
             break;
+
+          default:
+            while (ret.length < entries)
+              ret.push({});
+            for (let i = 0; i < entries; i++)
+              ret[i][key] = this._generate(seed[key], 1)[0];
+            break;
+
+        }
+      });
+
+    return ret;
+  }
+
+  private async prefetchForeignValues(seed: Schema): Promise<void> {
+    await Promise.all(
+      Object
+        .keys(seed)
+        .map(async key => {
+          switch (key) {
+
+            case 'cache':
+            case 'const':
+            case 'faker':
+              break;
+
+            case 'array':
+              if (seed.array)
+                await this.prefetchForeignValues(seed.array.items);
+              break;
+
+            case 'map':
+              if (seed.map) {
+                await this.prefetchForeignValues(seed.map.ids);
+                await this.prefetchForeignValues(seed.map.entities);
+              }
+              break;
+
+            case 'foreign':
+              if (seed.foreign) {
+                if (!this.cache.has(seed.foreign))
+                  this.cache.set(seed.foreign, await this.api.getForeignValues(seed.foreign));
+                  
+                seed.faker = {
+                  cmd: 'random.arrayElement',
+                  args: [this.cache.get(seed.foreign)]
+                };
+                delete seed.foreign;
+              }
+              break;
+
+            default:
+              await this.prefetchForeignValues(seed[key]);
+              break;
 
           }
+        })
+    );
+  }
+
+  private pregenerate(seed: Schema): void {
+    const [gen] = this._generate(seed, 1);
     
-          default:
-            await getForeignValues(seed[key], db);
-            break;
-        
-      }
-    }));
+    Object
+      .keys(gen)
+      .forEach(key => this.cache.set(key, gen[key]));
+  }
+
 }
+

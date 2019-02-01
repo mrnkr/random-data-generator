@@ -54,6 +54,7 @@ export class Database {
   private async connectMySql(): Promise<void> {
     if (this._connected) return;
 
+    // Requires: ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password'
     this._db = mysql.createConnection(this.connectionString);
 
     return new Promise((resolve, reject) => {
