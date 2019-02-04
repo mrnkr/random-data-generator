@@ -13,7 +13,7 @@ import { loadSchema } from './json-reader';
 const init = () => {
   console.log(
     chalk.green(
-      figlet.textSync("RDG", {
+      figlet.textSync("DUMMY", {
         font: "Ghost",
         horizontalLayout: "default",
         verticalLayout: "default"

@@ -1,7 +1,7 @@
 {
-  "name": "haphazard",
+  "name": "dummy",
   "version": "0.0.3",
-  "description": "CLI to populate a database with random data table by table",
+  "description": "CLI to populate a database with dummy data table by table",
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc",
@@ -46,7 +46,7 @@
     "typescript": "^3.2.4"
   },
   "bin": {
-    "haphazard": "./dist/index.js"
+    "dummy": "./dist/index.js"
   },
   "jest": {
     "roots": [
