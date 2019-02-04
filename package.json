@@ -1,6 +1,6 @@
 {
   "name": "dummy-filler",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "CLI to populate a database with dummy data table by table",
   "main": "src/index.ts",
   "scripts": {
