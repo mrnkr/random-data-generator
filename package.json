@@ -1,7 +1,7 @@
 {
-  "name": "random-data-generator",
+  "name": "haphazard",
   "version": "0.0.3",
-  "description": "CLI to generate random data in a database",
+  "description": "CLI to populate a database with random data table by table",
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc",
@@ -10,6 +10,9 @@
     "test": "jest"
   },
   "repository": "https://github.com/mrnkr/random-data-generator",
+  "bugs": {
+    "url": "https://github.com/mrnkr/random-data-generator/issues"
+  },
   "keywords": [
     "cli",
     "random",
@@ -43,7 +46,7 @@
     "typescript": "^3.2.4"
   },
   "bin": {
-    "rdg": "./dist/index.js"
+    "haphazard": "./dist/index.js"
   },
   "jest": {
     "roots": [
