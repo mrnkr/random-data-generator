@@ -1,17 +1,23 @@
-# Random Data Generator
+# Dummy data generator
+
+[![NPM version][npm-image]][npm-url]
+[![Downloads][downloads-image]][npm-url]
+
+[npm-image]:http://img.shields.io/npm/v/dummy-filler.svg
+[npm-url]:https://npmjs.org/package/dummy-filler
+[downloads-image]:http://img.shields.io/npm/dm/dummy-filler.svg
+
+CLI to populate a database with dummy data table by table
 
 ### Description
 CLI intended to populate databases with test data. It receives basic information it then uses to access the database (host, auth info, ...) and the shape of the data it should generate (uses the [faker](https://www.npmjs.com/package/faker) package). It fills only one collection/table at a time and it can work with foreign keys. **FOR NOW THIS ONLY WORKS WITH MONGO AND MYSQL DBs** - Planned support for firebase firestore!
 
 ### Installation
-This is the initial implementation so this process is not streamlined. As soon as I feel the project is a bit more advanced I will make an npm package for global installation. For now you should:
+Finally the npm package is out 🙃 install it and enjoy!
 
 ```
-git clone https://github.com/mrnkr/random-data-generator.git
-cd random-data-generator
-npm install
-npm run build
-npm link # May require sudo
+npm i -g dummy-filler # may require sudo
+dummy-filler
 ```
 
 ### Usage

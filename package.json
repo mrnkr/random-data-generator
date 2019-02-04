@@ -1,5 +1,5 @@
 {
-  "name": "dummy",
+  "name": "dummy-filler",
   "version": "0.0.3",
   "description": "CLI to populate a database with dummy data table by table",
   "main": "src/index.ts",
@@ -46,7 +46,7 @@
     "typescript": "^3.2.4"
   },
   "bin": {
-    "dummy": "./dist/index.js"
+    "dummy-filler": "./dist/index.js"
   },
   "jest": {
     "roots": [
