@@ -1,5 +1,7 @@
+import { Engine } from "./engine";
+
 export interface Config {
-  engine: 'mongodb' | 'mysql';
+  engine: Engine;
   host: string;
   port: string;
   auth: boolean;

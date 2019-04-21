@@ -4,11 +4,11 @@ import chalk from 'chalk';
 import figlet from 'figlet';
 import inquirer from 'inquirer';
 
-import { Api } from './api';
 import { Config } from './config';
 import createContainer from './container';
 import { Generator } from './generator';
 import { loadSchema } from './json-reader';
+import { Database } from './db';
 
 const init = () => {
   console.log(
@@ -29,7 +29,7 @@ const askQuestions: () => Promise<Config> = () => {
       name: "engine",
       type: "list",
       message: "What database engine are you using?",
-      choices: ["mongodb", "mysql"]
+      choices: ["mongodb", "mysql", "mariadb", "sqlite", "postgres", "mssql"]
     },
     {
       name: "host",
@@ -99,18 +99,22 @@ const run = async () => {
   // prepare everything
   const container = await createContainer(
     config.engine,
-    `${config.engine}://${config.auth ? `${config.username}:${config.password}@` : ''}${config.host}:${config.port}/${config.database}`
+    config.host,
+    parseInt(config.port),
+    config.database,
+    config.username || '',
+    config.password || ''
   );
 
-  const api     = container.resolve('api') as Api;
+  const db      = container.resolve('db') as Database;
   const gen     = container.resolve('generator') as Generator;
   const schema  = await loadSchema(config.schemaUri);
 
   // generate and populate
   const data    = await gen.generate(schema, Number.parseInt(config.entries || '1'));
-  
+
   if (config.commit)
-    await api.insert(config.collection, data);
+    await db.insert(config.collection, data);
   else
     console.log(`Generated: \n${JSON.stringify(data[0], null, 2)}`);
 

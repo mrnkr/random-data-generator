@@ -1,6 +1,6 @@
 {
   "name": "dummy-filler",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "CLI to populate a database with dummy data table by table",
   "main": "src/index.ts",
   "scripts": {
@@ -27,8 +27,13 @@
     "faker": "^4.1.0",
     "figlet": "^1.2.1",
     "inquirer": "^6.2.1",
+    "mariadb": "^2.0.3",
     "mongodb": "^3.1.13",
-    "mysql": "^2.16.0"
+    "mysql": "^2.16.0",
+    "pg": "^7.10.0",
+    "sequelize": "^5.7.1",
+    "sqlite": "^3.0.3",
+    "tedious": "^6.1.1"
   },
   "devDependencies": {
     "@types/faker": "^4.1.5",

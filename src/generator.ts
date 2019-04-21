@@ -1,7 +1,7 @@
 import Ajv from 'ajv';
 import * as faker from 'faker';
-import { Api } from './api';
 import { Schema } from './schema';
+import { Database } from './db';
 
 const schema = {
   "$id": "http://example.com/schemas/schema.json",
@@ -76,7 +76,7 @@ export class Generator {
   private validate = new Ajv({ allErrors: true, useDefaults: true, verbose: true }).compile(schema);
   private cache: Map<string, any> = new Map();
 
-  constructor(private api: Api) {
+  constructor(private db: Database) {
     // polyfill arrayElements (not available for some reason 🤷🏻‍)
     (faker as any).random['arrayElements'] = (array: any[]) =>
       array.filter(_ => faker.random.boolean());
@@ -89,7 +89,7 @@ export class Generator {
       await this.pregenerate(seed.pregenerate)
       delete seed.pregenerate;
     }
-      
+
     return this._generate(seed, entries);
   }
 
@@ -98,7 +98,7 @@ export class Generator {
       if (!count) {
         if (!limit)
           throw new Error('No limit or count provided 😒');
-        
+
         count = faker.random.number({ min: 1, max: limit - 1 });
       }
 
@@ -120,7 +120,7 @@ export class Generator {
     map: ({ ids, entities, format = 'simple' }: { ids: Schema; entities: Schema; format: 'simple' | 'detailed' }) => {
       const ret: any    = {};
       const [genIds]    = this._generate(ids, 1);
-      
+
       if (!('forEach' in genIds) || !('length' in genIds))
         throw new Error(`ids generated something other than an array 🙄\n
                          Generator: ${JSON.stringify(ids, null, 2)}\n
@@ -194,8 +194,11 @@ export class Generator {
             case 'foreign':
               if (seed.foreign) {
                 if (!this.cache.has(seed.foreign))
-                  this.cache.set(seed.foreign, await this.api.getForeignValues(seed.foreign));
-                  
+                  this.cache.set(seed.foreign, await this.db.getDistinctValues(
+                    seed.foreign.split('.')[0],
+                    seed.foreign.split('.')[1]
+                  ));
+
                 seed.faker = {
                   cmd: 'random.arrayElement',
                   args: [this.cache.get(seed.foreign)]
@@ -215,11 +218,10 @@ export class Generator {
 
   private pregenerate(seed: Schema): void {
     const [gen] = this._generate(seed, 1);
-    
+
     Object
       .keys(gen)
       .forEach(key => this.cache.set(key, gen[key]));
   }
 
 }
-
